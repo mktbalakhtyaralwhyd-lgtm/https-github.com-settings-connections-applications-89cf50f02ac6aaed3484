@@ -1,0 +1,452 @@
+import React, { useState, useEffect } from 'react';
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+
+// البيانات الأساسية لنظام CRM مع إضافة معرّف فريد لكل سجل
+const initialCustomers = [
+  { id: 1, name: 'محمد علي', company: 'شركة الأمان', email: 'mohammad.ali@email.com', phone: '555-1234' },
+  { id: 2, name: 'فاطمة الزهراء', company: 'حلول تقنية', email: 'fatima@techsolutions.com', phone: '555-5678' },
+  { id: 3, name: 'أحمد حسين', company: 'المؤسسة الفنية', email: 'ahmed@art-inst.com', phone: '555-9012' },
+  { id: 4, name: 'سارة خالد', company: 'المشاريع الحديثة', email: 'sara.khalid@email.com', phone: '555-3456' },
+  { id: 5, name: 'علي حسن', company: 'رواد الأعمال', email: 'ali.hassan@email.com', phone: '555-7890' },
+];
+
+const initialOpportunities = [
+  { id: 1, client: 'محمد علي', product: 'باقة خدمية كاملة', value: 15000, status: 'قيد التفاوض' },
+  { id: 2, client: 'فاطمة الزهراء', product: 'تطوير تطبيق', value: 30000, status: 'تم إرسال العرض' },
+  { id: 3, client: 'أحمد حسين', product: 'تدريب فريق المبيعات', value: 5000, status: 'تم الفوز بالصفقة' },
+  { id: 4, client: 'سارة خالد', product: 'استشارة تسويقية', value: 7500, status: 'قيد التفاوض' },
+  { id: 5, client: 'علي حسن', product: 'صيانة شهرية', value: 20000, status: 'تم إرسال العرض' },
+  { id: 6, client: 'فاطمة الزهراء', product: 'نظام محاسبي', value: 12000, status: 'تم الفوز بالصفقة' },
+];
+
+const initialActivityLog = [
+  { id: 1, date: '2024-06-18', client: 'OP-002', type: 'بريد إلكتروني', summary: 'تم إرسال عرض أسعار مفصل.' },
+  { id: 2, date: '2024-06-19', client: 'محمد علي', type: 'مكالمة هاتفية', summary: 'مناقشة متطلبات المشروع، وتحديد موعد لاجتماع.' },
+  { id: 3, date: '2024-06-21', client: 'أحمد حسين', type: 'اجتماع', summary: 'توقيع عقد التدريب مع الفريق.' },
+];
+
+const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#AF19FF', '#FF5733'];
+
+// مكون لعرض جدول قاعدة بيانات العملاء
+const CustomersTable = ({ data, onEdit, onDelete }) => (
+  <div className="bg-white rounded-xl shadow-lg p-6">
+    <h2 className="text-2xl font-bold text-gray-700 mb-4 text-center">قاعدة بيانات العملاء</h2>
+    <div className="overflow-x-auto">
+      <table className="min-w-full bg-white rounded-xl">
+        <thead className="bg-gray-200 text-gray-600 uppercase text-sm leading-normal">
+          <tr>
+            <th className="py-3 px-6 text-left">الاسم الكامل</th>
+            <th className="py-3 px-6 text-left">اسم الشركة</th>
+            <th className="py-3 px-6 text-left">البريد الإلكتروني</th>
+            <th className="py-3 px-6 text-left">رقم الهاتف</th>
+            <th className="py-3 px-6 text-left">إجراء</th>
+          </tr>
+        </thead>
+        <tbody className="text-gray-600 text-sm font-light">
+          {data.map((customer) => (
+            <tr key={customer.id} className="border-b border-gray-200 hover:bg-gray-100">
+              <td className="py-3 px-6 text-left whitespace-nowrap">{customer.name}</td>
+              <td className="py-3 px-6 text-left">{customer.company}</td>
+              <td className="py-3 px-6 text-left">{customer.email}</td>
+              <td className="py-3 px-6 text-left">{customer.phone}</td>
+              <td className="py-3 px-6 text-left">
+                <button
+                  onClick={() => onEdit(customer)}
+                  className="bg-blue-500 text-white px-3 py-1 rounded-full text-xs hover:bg-blue-600 transition"
+                >
+                  تعديل
+                </button>
+                <button
+                  onClick={() => onDelete(customer.id)}
+                  className="bg-red-500 text-white px-3 py-1 rounded-full text-xs ml-2 hover:bg-red-600 transition"
+                >
+                  حذف
+                </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </div>
+);
+
+// مكون لعرض جدول المبيعات والفرص
+const OpportunitiesTable = ({ data, onEdit, onDelete }) => (
+  <div className="bg-white rounded-xl shadow-lg p-6">
+    <h2 className="text-2xl font-bold text-gray-700 mb-4 text-center">المبيعات والفرص</h2>
+    <div className="overflow-x-auto">
+      <table className="min-w-full bg-white rounded-xl">
+        <thead className="bg-gray-200 text-gray-600 uppercase text-sm leading-normal">
+          <tr>
+            <th className="py-3 px-6 text-left">معرف الفرصة</th>
+            <th className="py-3 px-6 text-left">العميل</th>
+            <th className="py-3 px-6 text-left">المنتج/الخدمة</th>
+            <th className="py-3 px-6 text-left">القيمة المتوقعة</th>
+            <th className="py-3 px-6 text-left">الحالة</th>
+            <th className="py-3 px-6 text-left">إجراء</th>
+          </tr>
+        </thead>
+        <tbody className="text-gray-600 text-sm font-light">
+          {data.map((opp) => (
+            <tr key={opp.id} className="border-b border-gray-200 hover:bg-gray-100">
+              <td className="py-3 px-6 text-left whitespace-nowrap">{opp.id}</td>
+              <td className="py-3 px-6 text-left">{opp.client}</td>
+              <td className="py-3 px-6 text-left">{opp.product}</td>
+              <td className="py-3 px-6 text-left">{opp.value} ريال</td>
+              <td className="py-3 px-6 text-left">{opp.status}</td>
+              <td className="py-3 px-6 text-left">
+                <button
+                  onClick={() => onEdit(opp)}
+                  className="bg-blue-500 text-white px-3 py-1 rounded-full text-xs hover:bg-blue-600 transition"
+                >
+                  تعديل
+                </button>
+                <button
+                  onClick={() => onDelete(opp.id)}
+                  className="bg-red-500 text-white px-3 py-1 rounded-full text-xs ml-2 hover:bg-red-600 transition"
+                >
+                  حذف
+                </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </div>
+);
+
+// مكون لعرض جدول سجل الأنشطة
+const ActivityLogTable = ({ data, onEdit, onDelete }) => (
+  <div className="bg-white rounded-xl shadow-lg p-6">
+    <h2 className="text-2xl font-bold text-gray-700 mb-4 text-center">سجل الأنشطة</h2>
+    <div className="overflow-x-auto">
+      <table className="min-w-full bg-white rounded-xl">
+        <thead className="bg-gray-200 text-gray-600 uppercase text-sm leading-normal">
+          <tr>
+            <th className="py-3 px-6 text-left">التاريخ</th>
+            <th className="py-3 px-6 text-left">العميل/الفرصة</th>
+            <th className="py-3 px-6 text-left">نوع النشاط</th>
+            <th className="py-3 px-6 text-left">ملخص النشاط</th>
+            <th className="py-3 px-6 text-left">إجراء</th>
+          </tr>
+        </thead>
+        <tbody className="text-gray-600 text-sm font-light">
+          {data.map((activity) => (
+            <tr key={activity.id} className="border-b border-gray-200 hover:bg-gray-100">
+              <td className="py-3 px-6 text-left whitespace-nowrap">{activity.date}</td>
+              <td className="py-3 px-6 text-left">{activity.client}</td>
+              <td className="py-3 px-6 text-left">{activity.type}</td>
+              <td className="py-3 px-6 text-left">{activity.summary}</td>
+              <td className="py-3 px-6 text-left">
+                <button
+                  onClick={() => onEdit(activity)}
+                  className="bg-blue-500 text-white px-3 py-1 rounded-full text-xs hover:bg-blue-600 transition"
+                >
+                  تعديل
+                </button>
+                <button
+                  onClick={() => onDelete(activity.id)}
+                  className="bg-red-500 text-white px-3 py-1 rounded-full text-xs ml-2 hover:bg-red-600 transition"
+                >
+                  حذف
+                </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </div>
+);
+
+// المكون الرئيسي للتطبيق
+const App = () => {
+  // حالات لتخزين البيانات وحالة التحميل
+  const [customers, setCustomers] = useState([]);
+  const [opportunities, setOpportunities] = useState([]);
+  const [activityLog, setActivityLog] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // حالة للتنقل بين الصفحات
+  const [activeView, setActiveView] = useState('dashboard');
+
+  // حالات لإدارة النماذج (Forms)
+  const [showCustomerForm, setShowCustomerForm] = useState(false);
+  const [editingCustomer, setEditingCustomer] = useState(null);
+
+  // useEffect لجلب البيانات (محاكاة)
+  useEffect(() => {
+    const fetchData = () => {
+      return new Promise(resolve => {
+        setTimeout(() => {
+          resolve({ customers: initialCustomers, opportunities: initialOpportunities, activityLog: initialActivityLog });
+        }, 1500); // 1.5 ثانية تأخير
+      });
+    };
+
+    fetchData().then(data => {
+      setCustomers(data.customers);
+      setOpportunities(data.opportunities);
+      setActivityLog(data.activityLog);
+      setIsLoading(false);
+    });
+  }, []);
+
+  // حساب بيانات الرسوم البيانية
+  const getOpportunityStatusData = () => {
+    const statusCounts = opportunities.reduce((acc, opp) => {
+      acc[opp.status] = (acc[opp.status] || 0) + 1;
+      return acc;
+    }, {});
+    return Object.keys(statusCounts).map(status => ({
+      name: status,
+      value: statusCounts[status],
+    }));
+  };
+
+  const getOpportunityValueData = () => {
+    return opportunities.map(opp => ({
+      name: `${opp.id} (${opp.client})`,
+      value: opp.value,
+    }));
+  };
+
+  const statusData = getOpportunityStatusData();
+  const valueData = getOpportunityValueData();
+
+  // دوال لإدارة العملاء
+  const handleAddCustomer = (newCustomer) => {
+    // إضافة معرف فريد للعميل الجديد
+    const newId = customers.length > 0 ? Math.max(...customers.map(c => c.id)) + 1 : 1;
+    setCustomers([...customers, { ...newCustomer, id: newId }]);
+    setShowCustomerForm(false);
+    setEditingCustomer(null);
+  };
+
+  const handleUpdateCustomer = (updatedCustomer) => {
+    setCustomers(customers.map(c => c.id === updatedCustomer.id ? updatedCustomer : c));
+    setShowCustomerForm(false);
+    setEditingCustomer(null);
+  };
+
+  const handleDeleteCustomer = (id) => {
+    setCustomers(customers.filter(c => c.id !== id));
+  };
+
+  const handleEditCustomerClick = (customer) => {
+    setEditingCustomer(customer);
+    setShowCustomerForm(true);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-100">
+        <div className="text-center">
+          <svg className="animate-spin h-10 w-10 text-blue-500 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          <p className="mt-4 text-gray-700 text-lg">جاري تحميل البيانات...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // مكونات النماذج (Forms)
+  const CustomerForm = ({ customer, onSave, onCancel }) => {
+    const [name, setName] = useState(customer ? customer.name : '');
+    const [company, setCompany] = useState(customer ? customer.company : '');
+    const [email, setEmail] = useState(customer ? customer.email : '');
+    const [phone, setPhone] = useState(customer ? customer.phone : '');
+
+    const handleSubmit = (e) => {
+      e.preventDefault();
+      onSave({ ...customer, name, company, email, phone });
+    };
+
+    return (
+      <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
+        <h2 className="text-2xl font-bold text-gray-700 mb-4 text-center">{customer ? 'تعديل بيانات العميل' : 'إضافة عميل جديد'}</h2>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <input
+            type="text"
+            placeholder="الاسم الكامل"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="w-full p-2 border border-gray-300 rounded-md"
+            required
+          />
+          <input
+            type="text"
+            placeholder="اسم الشركة"
+            value={company}
+            onChange={(e) => setCompany(e.target.value)}
+            className="w-full p-2 border border-gray-300 rounded-md"
+            required
+          />
+          <input
+            type="email"
+            placeholder="البريد الإلكتروني"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="w-full p-2 border border-gray-300 rounded-md"
+            required
+          />
+          <input
+            type="tel"
+            placeholder="رقم الهاتف"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            className="w-full p-2 border border-gray-300 rounded-md"
+            required
+          />
+          <div className="flex justify-end space-x-2">
+            <button
+              type="submit"
+              className="bg-green-500 text-white px-4 py-2 rounded-full font-bold hover:bg-green-600 transition"
+            >
+              {customer ? 'تعديل' : 'إضافة'}
+            </button>
+            <button
+              type="button"
+              onClick={onCancel}
+              className="bg-gray-500 text-white px-4 py-2 rounded-full font-bold hover:bg-gray-600 transition"
+            >
+              إلغاء
+            </button>
+          </div>
+        </form>
+      </div>
+    );
+  };
+
+  return (
+    <div className="p-4 bg-gray-100 min-h-screen">
+      <div className="container mx-auto">
+        {/* أزرار التنقل */}
+        <div className="flex justify-center space-x-4 mb-6">
+          <button
+            onClick={() => { setActiveView('dashboard'); setShowCustomerForm(false); }}
+            className={`px-6 py-3 rounded-full font-bold text-lg shadow-md transition transform hover:scale-105 duration-300 ${activeView === 'dashboard' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700'}`}
+          >
+            لوحة التحكم
+          </button>
+          <button
+            onClick={() => { setActiveView('customers'); setShowCustomerForm(false); }}
+            className={`px-6 py-3 rounded-full font-bold text-lg shadow-md transition transform hover:scale-105 duration-300 ${activeView === 'customers' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700'}`}
+          >
+            العملاء
+          </button>
+          <button
+            onClick={() => setActiveView('opportunities')}
+            className={`px-6 py-3 rounded-full font-bold text-lg shadow-md transition transform hover:scale-105 duration-300 ${activeView === 'opportunities' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700'}`}
+          >
+            الفرص
+          </button>
+          <button
+            onClick={() => setActiveView('activity')}
+            className={`px-6 py-3 rounded-full font-bold text-lg shadow-md transition transform hover:scale-105 duration-300 ${activeView === 'activity' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700'}`}
+          >
+            سجل الأنشطة
+          </button>
+        </div>
+
+        {/* عرض المحتوى بناءً على حالة التنقل */}
+        {activeView === 'dashboard' && (
+          <>
+            <div className="mb-6 text-center">
+              <h1 className="text-4xl font-extrabold text-gray-800">لوحة تحكم نظام متابعة العملاء</h1>
+              <p className="mt-2 text-lg text-gray-600">نظرة عامة على أدائك</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+              <div className="bg-white rounded-xl shadow-lg p-6 text-center transition transform hover:scale-105 duration-300">
+                <h2 className="text-2xl font-bold text-gray-700">إجمالي العملاء</h2>
+                <p className="mt-2 text-4xl font-extrabold text-blue-600">{customers.length}</p>
+              </div>
+              <div className="bg-white rounded-xl shadow-lg p-6 text-center transition transform hover:scale-105 duration-300">
+                <h2 className="text-2xl font-bold text-gray-700">إجمالي الفرص</h2>
+                <p className="mt-2 text-4xl font-extrabold text-green-600">{opportunities.length}</p>
+              </div>
+              <div className="bg-white rounded-xl shadow-lg p-6 text-center transition transform hover:scale-105 duration-300">
+                <h2 className="text-2xl font-bold text-gray-700">قيمة الفرص المفتوحة</h2>
+                <p className="mt-2 text-4xl font-extrabold text-yellow-600">{opportunities.filter(o => o.status !== 'تم الفوز بالصفقة').reduce((acc, o) => acc + o.value, 0)} ريال</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="bg-white rounded-xl shadow-lg p-6">
+                <h2 className="text-2xl font-bold text-gray-700 mb-4 text-center">حالة الفرص البيعية</h2>
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={statusData}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      outerRadius={100}
+                      fill="#8884d8"
+                      dataKey="value"
+                      label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
+                    >
+                      {statusData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+
+              <div className="bg-white rounded-xl shadow-lg p-6">
+                <h2 className="text-2xl font-bold text-gray-700 mb-4 text-center">قيمة الفرص</h2>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart
+                    data={valueData}
+                    margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" angle={-15} textAnchor="end" height={50} />
+                    <YAxis />
+                    <Tooltip />
+                    <Bar dataKey="value" fill="#8884d8" name="القيمة بالريال" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </>
+        )}
+
+        {activeView === 'customers' && (
+          <>
+            <button
+              onClick={() => { setShowCustomerForm(true); setEditingCustomer(null); }}
+              className="bg-green-500 text-white px-6 py-2 rounded-full font-bold mb-4 hover:bg-green-600 transition"
+            >
+              إضافة عميل جديد
+            </button>
+            {showCustomerForm && (
+              <CustomerForm
+                customer={editingCustomer}
+                onSave={editingCustomer ? handleUpdateCustomer : handleAddCustomer}
+                onCancel={() => setShowCustomerForm(false)}
+              />
+            )}
+            <CustomersTable
+              data={customers}
+              onEdit={handleEditCustomerClick}
+              onDelete={handleDeleteCustomer}
+            />
+          </>
+        )}
+
+        {activeView === 'opportunities' && <OpportunitiesTable data={opportunities} />}
+        {activeView === 'activity' && <ActivityLogTable data={activityLog} />}
+      </div>
+    </div>
+  );
+};
+
+export default App;
